@@ -7,6 +7,7 @@ use App\User;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 
+
 class LoginController extends Controller
 {
     /*
@@ -37,6 +38,38 @@ class LoginController extends Controller
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
+    }
+    public function loginSocial(Request $request)
+    {
+        $this->validate($request,[
+            'social_type'=> 'required|in:google,github'
+        ]);
+        $socialType = $request->get('social_type');
+        \Session::put('social_type', $socialType);
+        return \Socialite::driver($socialType)->redirect();
+    }
+
+    public function loginCallback()
+    {
+        $socialType = \Session::pull('social_type');
+        $userSocial = \Socialite::driver($socialType)->user();
+
+        $user = User::where('email',$userSocial->email)->first();
+
+        if(!$user){
+            $user = User::create([
+                'name'=>$socialType->name,
+                'email'=>$socialType->email,
+                //'password'=>bcrypt(str_random(8)),
+                'role'=>User::ROLE_USER,
+                'phone'=>'000',
+                'cpf'=>'000'
+            ]);
+        }
+        \Auth::login($user);
+
+        return redirect()->intended($this->redirectPath());
+
     }
 
     public function redirectTo()
